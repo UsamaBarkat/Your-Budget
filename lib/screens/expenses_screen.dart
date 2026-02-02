@@ -221,12 +221,16 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      subtitle: Text(
-                        '${getExpenseText('rupees', widget.language)} ${expenses[key]!.toStringAsFixed(0)}',
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: color,
+                      subtitle: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          '${getExpenseText('rupees', widget.language)} ${expenses[key]!.toStringAsFixed(0)}',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: color,
+                          ),
                         ),
                       ),
                       trailing: ElevatedButton(
@@ -245,7 +249,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
 
             // Total Section
             Container(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.green.shade50,
                 border: Border(
@@ -258,16 +262,21 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   Text(
                     getExpenseText('total', widget.language),
                     style: const TextStyle(
-                      fontSize: 24,
+                      fontSize: 22,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  Text(
-                    '${getExpenseText('rupees', widget.language)} ${total.toStringAsFixed(0)}',
-                    style: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green,
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        '${getExpenseText('rupees', widget.language)} ${total.toStringAsFixed(0)}',
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green,
+                        ),
+                      ),
                     ),
                   ),
                 ],

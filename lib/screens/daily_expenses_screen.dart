@@ -348,21 +348,30 @@ class _DailyExpensesScreenState extends State<DailyExpensesScreen> {
                             ),
                             title: Text(getDailyText(expense.category, widget.language)),
                             subtitle: Text(DateFormat('hh:mm a').format(expense.date)),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  '${getDailyText('rupees', widget.language)} ${expense.amount.toStringAsFixed(0)}',
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
+                            trailing: SizedBox(
+                              width: 120,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      '${getDailyText('rupees', widget.language)} ${expense.amount.toStringAsFixed(0)}',
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.delete, color: Colors.red, size: 20),
-                                  onPressed: () => _deleteExpense(expense.id),
-                                ),
-                              ],
+                                  IconButton(
+                                    icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                                    onPressed: () => _deleteExpense(expense.id),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         );
@@ -378,7 +387,7 @@ class _DailyExpensesScreenState extends State<DailyExpensesScreen> {
   Widget _buildSummaryCard(String label, double amount, Color color) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
         decoration: BoxDecoration(
           color: color.withAlpha(40),
           borderRadius: BorderRadius.circular(14),
@@ -386,23 +395,31 @@ class _DailyExpensesScreenState extends State<DailyExpensesScreen> {
         ),
         child: Column(
           children: [
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: color,
-                letterSpacing: 0.3,
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                  letterSpacing: 0.3,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
               ),
-              textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 8),
-            Text(
-              '${getDailyText('rupees', widget.language)} ${amount.toStringAsFixed(0)}',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: color,
+            const SizedBox(height: 6),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                '${getDailyText('rupees', widget.language)} ${amount.toStringAsFixed(0)}',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: color,
+                ),
+                maxLines: 1,
               ),
             ),
           ],
