@@ -1,62 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-// Translations for savings screen
-Map<String, Map<String, String>> savingsTranslations = {
-  'en': {
-    'title': 'Savings Goal',
-    'goal': 'Your Goal',
-    'saved': 'Saved',
-    'remaining': 'Remaining',
-    'set_goal': 'Set Goal',
-    'add_savings': 'Add Savings',
-    'enter_amount': 'Enter amount',
-    'save': 'Save',
-    'cancel': 'Cancel',
-    'reset': 'Reset',
-    'rupees': 'Rs.',
-    'complete': 'Goal Complete!',
-    'no_goal': 'Set a savings goal to start!',
-  },
-  'ur': {
-    'title': 'بچت کا ہدف',
-    'goal': 'آپ کا ہدف',
-    'saved': 'بچت',
-    'remaining': 'باقی',
-    'set_goal': 'ہدف مقرر کریں',
-    'add_savings': 'بچت شامل کریں',
-    'enter_amount': 'رقم درج کریں',
-    'save': 'محفوظ کریں',
-    'cancel': 'منسوخ',
-    'reset': 'ری سیٹ',
-    'rupees': 'روپے',
-    'complete': 'ہدف مکمل!',
-    'no_goal': 'شروع کرنے کے لیے ہدف مقرر کریں!',
-  },
-  'sd': {
-    'title': 'بچت جو مقصد',
-    'goal': 'توهان جو مقصد',
-    'saved': 'بچت',
-    'remaining': 'باقي',
-    'set_goal': 'مقصد مقرر ڪريو',
-    'add_savings': 'بچت شامل ڪريو',
-    'enter_amount': 'رقم لکو',
-    'save': 'محفوظ ڪريو',
-    'cancel': 'رد ڪريو',
-    'reset': 'ري سيٽ',
-    'rupees': 'رپيا',
-    'complete': 'مقصد مڪمل!',
-    'no_goal': 'شروع ڪرڻ لاءِ مقصد مقرر ڪريو!',
-  },
-};
-
-String getSavingsText(String key, String lang) {
-  return savingsTranslations[lang]?[key] ?? savingsTranslations['en']![key]!;
-}
+import '../core/money.dart';
+import '../l10n/translations.dart';
+import '../services/persistence_service.dart';
 
 class SavingsScreen extends StatefulWidget {
   final String language;
-
   const SavingsScreen({super.key, required this.language});
 
   @override
@@ -64,137 +13,134 @@ class SavingsScreen extends StatefulWidget {
 }
 
 class _SavingsScreenState extends State<SavingsScreen> {
-  double _goal = 0;
-  double _saved = 0;
+  int _goal = 0;
+  int _saved = 0;
+  late PersistenceService _persistence;
 
   @override
   void initState() {
     super.initState();
+    _persistence = PersistenceService();
     _loadData();
   }
 
   Future<void> _loadData() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _goal = prefs.getDouble('savings_goal') ?? 0;
-      _saved = prefs.getDouble('savings_saved') ?? 0;
+      _goal = int.tryParse(prefs.getString('savings_goal') ?? '') ?? 0;
+      _saved = int.tryParse(prefs.getString('savings_saved') ?? '') ?? 0;
     });
   }
 
-  Future<void> _saveData() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setDouble('savings_goal', _goal);
-    await prefs.setDouble('savings_saved', _saved);
+  Future<void> _saveGoal() async {
+    final ok = await _persistence.write('savings_goal', _goal.toString(), affectedIds: {'savings_goal'});
+    if (!ok && mounted) { setState(() {}); _showSaveFailedSnackbar(); }
   }
 
-  double get _remaining => (_goal - _saved).clamp(0, double.infinity);
-  double get _progress => _goal > 0 ? (_saved / _goal).clamp(0, 1) : 0;
+  Future<void> _saveSaved() async {
+    final ok = await _persistence.write('savings_saved', _saved.toString(), affectedIds: {'savings_saved'});
+    if (!ok && mounted) { setState(() {}); _showSaveFailedSnackbar(); }
+  }
 
-  void _showSetGoalDialog() {
-    final controller = TextEditingController(
-      text: _goal > 0 ? _goal.toStringAsFixed(0) : '',
+  void _showSaveFailedSnackbar() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(t('savings', 'save_failed', widget.language)),
+        action: SnackBarAction(
+          label: t('savings', 'retry', widget.language),
+          onPressed: () async {
+            final ok = await _persistence.retryPending();
+            if (mounted) setState(() {});
+            if (!ok && mounted) _showSaveFailedSnackbar();
+          },
+        ),
+      ),
     );
+  }
 
+  int get _remaining => (_goal - _saved).clamp(0, _goal);
+  double get _progress => _goal > 0 ? (_saved / _goal).clamp(0.0, 1.0) : 0.0;
+
+  void _showAmountDialog({
+    required String titleKey,
+    int? initialPaisa,
+    required void Function(int) onSave,
+  }) {
+    final controller = TextEditingController(text: initialPaisa != null && initialPaisa > 0 ? paisaToDisplay(initialPaisa) : '');
+    String? errorText;
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(getSavingsText('set_goal', widget.language)),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          autofocus: true,
-          decoration: InputDecoration(
-            hintText: getSavingsText('enter_amount', widget.language),
-            prefixText: '${getSavingsText('rupees', widget.language)} ',
-            border: const OutlineInputBorder(),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Text(t('savings', titleKey, widget.language)),
+          content: TextField(
+            controller: controller,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            autofocus: true,
+            decoration: InputDecoration(
+              hintText: t('savings', 'enter_amount', widget.language),
+              prefixText: '${t('savings', 'rupees', widget.language)} ',
+              border: const OutlineInputBorder(),
+              errorText: errorText,
+            ),
+            style: const TextStyle(fontSize: 24),
+            onChanged: (_) => setDialogState(() => errorText = null),
           ),
-          style: const TextStyle(fontSize: 24),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(t('savings', 'cancel', widget.language))),
+            ElevatedButton(
+              onPressed: () {
+                final err = validateRupeeInput(controller.text);
+                if (err != null) { setDialogState(() => errorText = t('savings', err, widget.language)); return; }
+                Navigator.pop(ctx);
+                onSave(rupeesToPaisa(controller.text));
+              },
+              child: Text(t('savings', 'save', widget.language)),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(getSavingsText('cancel', widget.language)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final amount = double.tryParse(controller.text) ?? 0;
-              setState(() {
-                _goal = amount;
-                _saved = 0; // Reset saved amount when setting new goal
-              });
-              _saveData();
-              Navigator.pop(context);
-            },
-            child: Text(getSavingsText('save', widget.language)),
-          ),
-        ],
       ),
+    );
+  }
+
+  void _showSetGoalDialog() {
+    _showAmountDialog(
+      titleKey: 'set_goal',
+      initialPaisa: _goal,
+      onSave: (amount) async {
+        setState(() { _goal = amount; _saved = 0; });
+        await _saveGoal();
+        await _saveSaved();
+      },
     );
   }
 
   void _showAddSavingsDialog() {
-    final controller = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(getSavingsText('add_savings', widget.language)),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          autofocus: true,
-          decoration: InputDecoration(
-            hintText: getSavingsText('enter_amount', widget.language),
-            prefixText: '${getSavingsText('rupees', widget.language)} ',
-            border: const OutlineInputBorder(),
-          ),
-          style: const TextStyle(fontSize: 24),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(getSavingsText('cancel', widget.language)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final amount = double.tryParse(controller.text) ?? 0;
-              setState(() {
-                _saved += amount;
-              });
-              _saveData();
-              Navigator.pop(context);
-            },
-            child: Text(getSavingsText('save', widget.language)),
-          ),
-        ],
-      ),
+    _showAmountDialog(
+      titleKey: 'add_savings',
+      onSave: (amount) async {
+        setState(() => _saved += amount);
+        await _saveSaved();
+      },
     );
   }
 
   void _reset() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(getSavingsText('reset', widget.language)),
+      builder: (ctx) => AlertDialog(
+        title: Text(t('savings', 'reset', widget.language)),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(getSavingsText('cancel', widget.language)),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(t('savings', 'cancel', widget.language))),
           ElevatedButton(
-            onPressed: () {
-              setState(() {
-                _goal = 0;
-                _saved = 0;
-              });
-              _saveData();
-              Navigator.pop(context);
+            onPressed: () async {
+              setState(() { _goal = 0; _saved = 0; });
+              Navigator.pop(ctx);
+              await _saveGoal();
+              await _saveSaved();
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: Text(
-              getSavingsText('reset', widget.language),
-              style: const TextStyle(color: Colors.white),
-            ),
+            child: Text(t('savings', 'reset', widget.language), style: const TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -203,96 +149,43 @@ class _SavingsScreenState extends State<SavingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isComplete = _saved >= _goal && _goal > 0;
-
+    final isComplete = _goal > 0 && _saved >= _goal;
     return Scaffold(
       appBar: AppBar(
-        title: Text(getSavingsText('title', widget.language)),
+        title: Text(t('savings', 'title', widget.language)),
         centerTitle: true,
         backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-        actions: [
-          if (_goal > 0)
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: _reset,
-            ),
-        ],
+        actions: [if (_goal > 0) IconButton(icon: const Icon(Icons.refresh), onPressed: _reset)],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: Column(
             children: [
-              // Two Big Buttons at TOP
               Row(
                 children: [
-                  Expanded(
-                    child: SizedBox(
-                      height: 70,
-                      child: ElevatedButton.icon(
-                        onPressed: _showSetGoalDialog,
-                        icon: const Icon(Icons.flag, size: 28),
-                        label: Text(
-                          getSavingsText('set_goal', widget.language),
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+                  Expanded(child: SizedBox(height: 70, child: ElevatedButton.icon(
+                    onPressed: _showSetGoalDialog,
+                    icon: const Icon(Icons.flag, size: 28),
+                    label: Text(t('savings', 'set_goal', widget.language), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+                  ))),
                   const SizedBox(width: 12),
-                  Expanded(
-                    child: SizedBox(
-                      height: 70,
-                      child: ElevatedButton.icon(
-                        onPressed: _showAddSavingsDialog,
-                        icon: const Icon(Icons.add, size: 28),
-                        label: Text(
-                          getSavingsText('add_savings', widget.language),
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+                  Expanded(child: SizedBox(height: 70, child: ElevatedButton.icon(
+                    onPressed: _showAddSavingsDialog,
+                    icon: const Icon(Icons.add, size: 28),
+                    label: Text(t('savings', 'add_savings', widget.language), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+                  ))),
                 ],
               ),
-
               const SizedBox(height: 30),
-
-              // Show message if no goal set
               if (_goal == 0)
-                Container(
-                  padding: const EdgeInsets.all(40),
-                  child: Column(
-                    children: [
-                      Icon(Icons.savings, size: 80, color: Colors.grey.shade400),
-                      const SizedBox(height: 16),
-                      Text(
-                        getSavingsText('no_goal', widget.language),
-                        style: TextStyle(
-                          fontSize: 18,
-                          color: Colors.grey.shade600,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                ),
-
-              // Progress Circle (only show if goal is set)
+                Column(children: [
+                  Icon(Icons.savings, size: 80, color: Colors.grey.shade400),
+                  const SizedBox(height: 16),
+                  Text(t('savings', 'no_goal', widget.language), style: TextStyle(fontSize: 18, color: Colors.grey.shade600), textAlign: TextAlign.center),
+                ]),
               if (_goal > 0) ...[
                 SizedBox(
                   height: 180,
@@ -300,67 +193,23 @@ class _SavingsScreenState extends State<SavingsScreen> {
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      CircularProgressIndicator(
-                        value: _progress,
-                        strokeWidth: 15,
-                        backgroundColor: Colors.grey.shade200,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          isComplete ? Colors.green : Colors.blue,
-                        ),
-                      ),
+                      CircularProgressIndicator(value: _progress, strokeWidth: 15, backgroundColor: Colors.grey.shade200, valueColor: AlwaysStoppedAnimation<Color>(isComplete ? Colors.green : Colors.blue)),
                       Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              '${(_progress * 100).toStringAsFixed(0)}%',
-                              style: TextStyle(
-                                fontSize: 36,
-                                fontWeight: FontWeight.bold,
-                                color: isComplete ? Colors.green : Colors.blue,
-                              ),
-                            ),
-                            if (isComplete)
-                              Text(
-                                getSavingsText('complete', widget.language),
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.green,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                          ],
-                        ),
+                        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                          Text('${(_progress * 100).toStringAsFixed(0)}%', style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: isComplete ? Colors.green : Colors.blue)),
+                          if (isComplete) Text(t('savings', 'complete', widget.language), style: const TextStyle(fontSize: 14, color: Colors.green, fontWeight: FontWeight.bold)),
+                        ]),
                       ),
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 30),
-
-                // Stats Cards
-                _buildStatCard(
-                  getSavingsText('goal', widget.language),
-                  _goal,
-                  Colors.blue,
-                  Icons.flag,
-                ),
+                _buildStatCard(t('savings', 'goal', widget.language), _goal, Colors.blue, Icons.flag, persistenceKey: 'savings_goal'),
                 const SizedBox(height: 12),
-                _buildStatCard(
-                  getSavingsText('saved', widget.language),
-                  _saved,
-                  Colors.green,
-                  Icons.savings,
-                ),
+                _buildStatCard(t('savings', 'saved', widget.language), _saved, Colors.green, Icons.savings, persistenceKey: 'savings_saved'),
                 const SizedBox(height: 12),
-                _buildStatCard(
-                  getSavingsText('remaining', widget.language),
-                  _remaining,
-                  Colors.orange,
-                  Icons.pending,
-                ),
+                _buildStatCard(t('savings', 'remaining', widget.language), _remaining, Colors.orange, Icons.pending),
               ],
-
               const SizedBox(height: 20),
             ],
           ),
@@ -369,31 +218,21 @@ class _SavingsScreenState extends State<SavingsScreen> {
     );
   }
 
-  Widget _buildStatCard(String label, double amount, Color color, IconData icon) {
+  Widget _buildStatCard(String label, int paisa, Color color, IconData icon, {String? persistenceKey}) {
+    final isUnsaved = persistenceKey != null && _persistence.isUnsaved(persistenceKey);
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withAlpha(30),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withAlpha(80)),
-      ),
+      decoration: BoxDecoration(color: color.withAlpha(30), borderRadius: BorderRadius.circular(12), border: Border.all(color: color.withAlpha(80))),
       child: Row(
         children: [
           Icon(icon, color: color, size: 30),
           const SizedBox(width: 16),
-          Text(
-            label,
-            style: const TextStyle(fontSize: 18),
-          ),
+          Row(children: [
+            Text(label, style: const TextStyle(fontSize: 18)),
+            if (isUnsaved) const Padding(padding: EdgeInsets.only(left: 6), child: Icon(Icons.warning_amber, color: Colors.amber, size: 16)),
+          ]),
           const Spacer(),
-          Text(
-            '${getSavingsText('rupees', widget.language)} ${amount.toStringAsFixed(0)}',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
+          Text('${t('savings', 'rupees', widget.language)} ${paisaToDisplay(paisa)}', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: color)),
         ],
       ),
     );
