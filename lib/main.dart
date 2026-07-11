@@ -1,25 +1,44 @@
+import 'dart:ui' show PlatformDispatcher;
 import 'package:flutter/material.dart';
 import 'screens/home_screen.dart';
+import 'services/language_service.dart';
 
-void main() {
-  runApp(const HomeBudgetApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final deviceLocale = PlatformDispatcher.instance.locale.languageCode;
+  final langService = await LanguageService.create();
+  final initialLang = await langService.load(deviceLocale);
+  runApp(HomeBudgetApp(initialLanguage: initialLang, langService: langService));
 }
 
 class HomeBudgetApp extends StatefulWidget {
-  const HomeBudgetApp({super.key});
+  final String initialLanguage;
+  final LanguageService langService;
+
+  const HomeBudgetApp({
+    super.key,
+    required this.initialLanguage,
+    required this.langService,
+  });
 
   @override
   State<HomeBudgetApp> createState() => _HomeBudgetAppState();
 }
 
 class _HomeBudgetAppState extends State<HomeBudgetApp> {
-  // Current language: 'en' = English, 'ur' = Urdu, 'sd' = Sindhi
-  String _language = 'en';
+  late String _language;
 
-  void changeLanguage(String lang) {
+  @override
+  void initState() {
+    super.initState();
+    _language = widget.initialLanguage;
+  }
+
+  void changeLanguage(String lang) async {
     setState(() {
       _language = lang;
     });
+    await widget.langService.save(lang);
   }
 
   @override
