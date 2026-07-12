@@ -1,6 +1,6 @@
 import 'dart:ui' show PlatformDispatcher;
 import 'package:flutter/material.dart';
-import 'screens/home_screen.dart';
+import 'screens/section_shell.dart';
 import 'services/language_service.dart';
 
 void main() async {
@@ -59,7 +59,7 @@ class _HomeBudgetAppState extends State<HomeBudgetApp> {
           bodyMedium: TextStyle(fontSize: 16),
         ),
       ),
-      home: HomeScreen(
+      home: SectionShell(
         language: _language,
         onLanguageChange: changeLanguage,
       ),
