@@ -3,38 +3,7 @@ import 'daily_expenses_screen.dart';
 import 'expenses_screen.dart';
 import 'savings_screen.dart';
 import 'reminders_screen.dart';
-
-// Simple translations
-Map<String, Map<String, String>> translations = {
-  'en': {
-    'app_title': 'Home Budget',
-    'daily_expenses': 'Daily Expenses',
-    'monthly_budget': 'Monthly Budget',
-    'savings_goal': 'Savings Goal',
-    'bill_reminders': 'Bill Reminders',
-    'language': 'Language',
-  },
-  'ur': {
-    'app_title': 'گھر کا بجٹ',
-    'daily_expenses': 'روزانہ اخراجات',
-    'monthly_budget': 'ماہانہ بجٹ',
-    'savings_goal': 'بچت کا ہدف',
-    'bill_reminders': 'بل کی یاد دہانی',
-    'language': 'زبان',
-  },
-  'sd': {
-    'app_title': 'گھر جو بجيٽ',
-    'daily_expenses': 'روزاني خرچا',
-    'monthly_budget': 'مهيني جو بجيٽ',
-    'savings_goal': 'بچت جو مقصد',
-    'bill_reminders': 'بل جي ياددهاني',
-    'language': 'ٻولي',
-  },
-};
-
-String getText(String key, String lang) {
-  return translations[lang]?[key] ?? translations['en']![key]!;
-}
+import '../l10n/translations.dart';
 
 class HomeScreen extends StatelessWidget {
   final String language;
@@ -51,7 +20,7 @@ class HomeScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          getText('app_title', language),
+          t('home', 'app_title', language),
           style: const TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 24,
@@ -71,7 +40,7 @@ class HomeScreen extends StatelessWidget {
               _buildBigButton(
                 context,
                 icon: Icons.today,
-                label: getText('daily_expenses', language),
+                label: t('home', 'daily_expenses', language),
                 color: Colors.pink,
                 onTap: () {
                   Navigator.push(
@@ -89,7 +58,7 @@ class HomeScreen extends StatelessWidget {
               _buildBigButton(
                 context,
                 icon: Icons.shopping_cart,
-                label: getText('monthly_budget', language),
+                label: t('home', 'monthly_budget', language),
                 color: Colors.blue,
                 onTap: () {
                   Navigator.push(
@@ -107,7 +76,7 @@ class HomeScreen extends StatelessWidget {
               _buildBigButton(
                 context,
                 icon: Icons.savings,
-                label: getText('savings_goal', language),
+                label: t('home', 'savings_goal', language),
                 color: Colors.green,
                 onTap: () {
                   Navigator.push(
@@ -125,7 +94,7 @@ class HomeScreen extends StatelessWidget {
               _buildBigButton(
                 context,
                 icon: Icons.notifications,
-                label: getText('bill_reminders', language),
+                label: t('home', 'bill_reminders', language),
                 color: Colors.orange,
                 onTap: () {
                   Navigator.push(
@@ -149,7 +118,7 @@ class HomeScreen extends StatelessWidget {
                 child: Column(
                   children: [
                     Text(
-                      getText('language', language),
+                      t('home', 'language', language),
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
