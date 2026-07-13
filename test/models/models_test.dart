@@ -126,5 +126,29 @@ void main() {
       final source = IncomeSource(id: '1', type: 'other', amount: 0);
       expect(IncomeSource.fromJson(source.toJson()).amount, 0);
     });
+
+    test('round-trip with date preserves date', () {
+      final date = DateTime(2025, 7, 13, 9, 30);
+      final original = IncomeSource(id: '2', type: 'salary', amount: 5000000, date: date);
+      final rt = IncomeSource.fromJson(original.toJson());
+      expect(rt.date, date);
+    });
+
+    test('missing date key in JSON gives null date', () {
+      final json = {'id': '3', 'type': 'other', 'amount': 100};
+      final source = IncomeSource.fromJson(json);
+      expect(source.date, isNull);
+    });
+
+    test('list with mixed dated and null-date records loads without error', () {
+      final dated = IncomeSource(id: '4', type: 'salary', amount: 1000, date: DateTime(2025, 7, 1));
+      final undated = IncomeSource(id: '5', type: 'other', amount: 500);
+      final list = [dated.toJson(), undated.toJson()]
+          .map(IncomeSource.fromJson)
+          .toList();
+      expect(list.length, 2);
+      expect(list[0].date, isNotNull);
+      expect(list[1].date, isNull);
+    });
   });
 }
