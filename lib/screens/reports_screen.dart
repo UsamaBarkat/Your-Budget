@@ -6,6 +6,7 @@ import '../core/money.dart';
 import '../core/report_utils.dart';
 import '../l10n/translations.dart';
 import '../models/daily_expense.dart';
+import '../models/income_source.dart';
 
 class ReportsScreen extends StatefulWidget {
   final String language;
@@ -26,6 +27,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   // via paisaToDisplay().
   int _goalPaisa = 0;
   int _savedPaisa = 0;
+  int _monthlyIncomePaisa = 0;
   bool _loaded = false;
 
   @override
@@ -65,6 +67,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final goalPaisa = int.tryParse(prefs.getString('savings_goal') ?? '') ?? 0;
     final savedPaisa = int.tryParse(prefs.getString('savings_saved') ?? '') ?? 0;
 
+    int monthlyIncome = 0;
+    final incomeRaw = prefs.getString('income_sources');
+    if (incomeRaw != null) {
+      final sources = (json.decode(incomeRaw) as List)
+          .map((e) => IncomeSource.fromJson(e as Map<String, dynamic>))
+          .toList();
+      monthlyIncome = sumIncomeForMonth(sources, now);
+    }
+
     if (!mounted) return;
     setState(() {
       _bucket = bucket;
@@ -72,6 +83,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       _totalPaisa = total;
       _goalPaisa = goalPaisa;
       _savedPaisa = savedPaisa;
+      _monthlyIncomePaisa = monthlyIncome;
       _loaded = true;
     });
   }
@@ -115,6 +127,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
               _bucket.isEmpty ? _buildEmptyState(lang) : _buildChart(context),
               const SizedBox(height: 16),
               _buildSummary(lang),
+              if (_monthlyIncomePaisa > 0) ...[
+                const SizedBox(height: 16),
+                _buildIncome(lang),
+              ],
               if (_goalPaisa > 0) ...[
                 const SizedBox(height: 16),
                 _buildSavings(lang),
@@ -214,6 +230,30 @@ class _ReportsScreenState extends State<ReportsScreen> {
         ]),
         Text('$_entryCount ${t('reports', 'entries', lang)}',
             style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
+      ]),
+    );
+  }
+
+  Widget _buildIncome(String lang) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.green.shade50,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+        Text(
+          '${t('income', 'this_month', lang)} ${t('income', 'title', lang)}',
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+        ),
+        Text(
+          '${t('shared', 'rupees', lang)} ${paisaToDisplay(_monthlyIncomePaisa)}',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.green.shade700,
+          ),
+        ),
       ]),
     );
   }
