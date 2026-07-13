@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'daily_expenses_screen.dart';
 import 'expenses_screen.dart';
+import 'income_screen.dart';
 import 'savings_screen.dart';
 import 'reminders_screen.dart';
 import '../l10n/translations.dart';
@@ -101,6 +102,24 @@ class HomeScreen extends StatelessWidget {
                     context,
                     MaterialPageRoute(
                       builder: (context) => RemindersScreen(language: language),
+                    ),
+                  );
+                },
+              ),
+
+              const SizedBox(height: 16),
+
+              // Income Button
+              _buildBigButton(
+                context,
+                icon: Icons.account_balance_wallet,
+                label: t('income', 'income_entry', language),
+                color: Colors.teal,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => IncomeScreen(language: language),
                     ),
                   );
                 },
