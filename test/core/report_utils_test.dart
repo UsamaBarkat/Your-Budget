@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:home_budget_app/core/report_utils.dart';
 import 'package:home_budget_app/models/daily_expense.dart';
+import 'package:home_budget_app/models/income_source.dart';
 
 void main() {
   final now = DateTime(2025, 7, 15);
@@ -44,6 +45,46 @@ void main() {
       final result = bucketExpensesByDay(expenses, now);
       expect(result.length, 1);
       expect(result[10], 750);
+    });
+  });
+
+  group('sumIncomeForMonth', () {
+    IncomeSource makeIncome(int amount, {int? month, int? year, bool nullDate = false}) =>
+        IncomeSource(
+          id: 'i_${year ?? 2025}_${month ?? 7}',
+          type: 'salary',
+          amount: amount,
+          date: nullDate ? null : DateTime(year ?? 2025, month ?? 7, 1),
+        );
+
+    test('TS-R5: empty list returns zero', () {
+      expect(sumIncomeForMonth([], now), 0);
+    });
+
+    test('TS-R6: entries from other months and years are excluded', () {
+      final sources = [
+        makeIncome(50000, month: 6),       // June 2025 — wrong month
+        makeIncome(30000, year: 2024),     // July 2024 — wrong year
+        makeIncome(45000),                  // July 2025 — matches
+      ];
+      expect(sumIncomeForMonth(sources, now), 45000);
+    });
+
+    test('TS-R7: null-date entries are excluded from the sum', () {
+      final sources = [
+        makeIncome(100000),                 // dated, matches
+        makeIncome(50000, nullDate: true),  // null date — excluded
+      ];
+      expect(sumIncomeForMonth(sources, now), 100000);
+    });
+
+    test('TS-R8: multiple entries in the same month are summed', () {
+      final sources = [
+        makeIncome(100000),
+        makeIncome(80000),
+        makeIncome(20000),
+      ];
+      expect(sumIncomeForMonth(sources, now), 200000);
     });
   });
 }

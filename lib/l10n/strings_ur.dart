@@ -121,7 +121,7 @@ const Map<String, Map<String, String>> stringsUr = {
     'save_failed': 'محفوظ نہیں ہوا',
     'salary': 'تنخواہ',
     'business': 'کاروبار',
-    'rent_income': 'کرایہ کی آمدنی',
+    'rent_income': 'کرائے کی آمدنی',
     'other': 'دیگر',
     'error_future_date': 'تاریخ مستقبل میں نہیں ہو سکتی',
   },
