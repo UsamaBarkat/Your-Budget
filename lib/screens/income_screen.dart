@@ -1,97 +1,15 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
-
-// Translations
-Map<String, Map<String, String>> incomeTranslations = {
-  'en': {
-    'title': 'Income & Balance',
-    'monthly_income': 'Monthly Income',
-    'total_expenses': 'Total Expenses',
-    'balance': 'Balance',
-    'set_income': 'Set Income',
-    'enter_amount': 'Enter amount',
-    'save': 'Save',
-    'cancel': 'Cancel',
-    'rupees': 'Rs.',
-    'income_sources': 'Income Sources',
-    'salary': 'Salary',
-    'business': 'Business',
-    'rent_income': 'Rent Income',
-    'other': 'Other',
-    'add_income': 'Add Income',
-    'this_month': 'This Month',
-    'saving': 'You are saving!',
-    'overspending': 'You are overspending!',
-    'delete': 'Delete',
-  },
-  'ur': {
-    'title': 'آمدنی اور بیلنس',
-    'monthly_income': 'ماہانہ آمدنی',
-    'total_expenses': 'کل اخراجات',
-    'balance': 'بیلنس',
-    'set_income': 'آمدنی مقرر کریں',
-    'enter_amount': 'رقم درج کریں',
-    'save': 'محفوظ کریں',
-    'cancel': 'منسوخ',
-    'rupees': 'روپے',
-    'income_sources': 'آمدنی کے ذرائع',
-    'salary': 'تنخواہ',
-    'business': 'کاروبار',
-    'rent_income': 'کرایہ کی آمدنی',
-    'other': 'دیگر',
-    'add_income': 'آمدنی شامل کریں',
-    'this_month': 'اس مہینے',
-    'saving': 'آپ بچت کر رہے ہیں!',
-    'overspending': 'آپ زیادہ خرچ کر رہے ہیں!',
-    'delete': 'حذف کریں',
-  },
-  'sd': {
-    'title': 'آمدني ۽ بيلنس',
-    'monthly_income': 'مهيني جي آمدني',
-    'total_expenses': 'ڪل خرچا',
-    'balance': 'بيلنس',
-    'set_income': 'آمدني مقرر ڪريو',
-    'enter_amount': 'رقم لکو',
-    'save': 'محفوظ ڪريو',
-    'cancel': 'رد ڪريو',
-    'rupees': 'رپيا',
-    'income_sources': 'آمدني جا ذريعا',
-    'salary': 'تنخواه',
-    'business': 'ڪاروبار',
-    'rent_income': 'ڪرائي جي آمدني',
-    'other': 'ٻيو',
-    'add_income': 'آمدني شامل ڪريو',
-    'this_month': 'هن مهيني',
-    'saving': 'توهان بچت ڪري رهيا آهيو!',
-    'overspending': 'توهان وڌيڪ خرچ ڪري رهيا آهيو!',
-    'delete': 'ختم ڪريو',
-  },
-};
-
-String getIncomeText(String key, String lang) {
-  return incomeTranslations[lang]?[key] ?? incomeTranslations['en']![key]!;
-}
-
-class IncomeSource {
-  final String id;
-  final String type;
-  final double amount;
-
-  IncomeSource({required this.id, required this.type, required this.amount});
-
-  Map<String, dynamic> toJson() => {'id': id, 'type': type, 'amount': amount};
-
-  factory IncomeSource.fromJson(Map<String, dynamic> json) => IncomeSource(
-    id: json['id'],
-    type: json['type'],
-    amount: (json['amount'] as num).toDouble(),
-  );
-}
+import '../core/money.dart';
+import '../core/report_utils.dart';
+import '../l10n/translations.dart';
+import '../models/income_source.dart';
+import '../services/persistence_service.dart';
+import 'income_add_dialog.dart';
 
 class IncomeScreen extends StatefulWidget {
   final String language;
-
   const IncomeScreen({super.key, required this.language});
 
   @override
@@ -99,118 +17,100 @@ class IncomeScreen extends StatefulWidget {
 }
 
 class _IncomeScreenState extends State<IncomeScreen> {
-  List<IncomeSource> _incomeSources = [];
-  double _monthlyExpenses = 0;
+  List<IncomeSource> _allSources = [];
+  bool _loaded = false;
+  late PersistenceService _persistence;
 
-  final List<Map<String, dynamic>> incomeTypes = [
-    {'key': 'salary', 'icon': Icons.work, 'color': Colors.blue},
-    {'key': 'business', 'icon': Icons.store, 'color': Colors.green},
-    {'key': 'rent_income', 'icon': Icons.home, 'color': Colors.orange},
-    {'key': 'other', 'icon': Icons.more_horiz, 'color': Colors.grey},
-  ];
+  static const _prefKey = 'income_sources';
 
   @override
   void initState() {
     super.initState();
+    _persistence = PersistenceService();
     _loadData();
   }
 
   Future<void> _loadData() async {
     final prefs = await SharedPreferences.getInstance();
-
-    // Load income sources
-    final String? incomeJson = prefs.getString('income_sources');
-    if (incomeJson != null) {
-      final List<dynamic> decoded = json.decode(incomeJson);
-      setState(() {
-        _incomeSources = decoded.map((e) => IncomeSource.fromJson(e)).toList();
-      });
-    }
-
-    // Load monthly expenses
-    final String? expensesJson = prefs.getString('expenses');
-    if (expensesJson != null) {
-      final decoded = json.decode(expensesJson) as Map<String, dynamic>;
-      double total = 0;
-      decoded.forEach((key, value) {
-        total += (value as num).toDouble();
-      });
-      setState(() {
-        _monthlyExpenses = total;
-      });
-    }
-
-    // Also add daily expenses for this month
-    final String? dailyJson = prefs.getString('daily_expenses');
-    if (dailyJson != null) {
-      final List<dynamic> decoded = json.decode(dailyJson);
-      final now = DateTime.now();
-      double dailyTotal = 0;
-      for (var e in decoded) {
-        final date = DateTime.parse(e['date']);
-        if (date.year == now.year && date.month == now.month) {
-          dailyTotal += (e['amount'] as num).toDouble();
-        }
+    final raw = prefs.getString(_prefKey);
+    if (!mounted) return;
+    setState(() {
+      if (raw != null) {
+        _allSources = (json.decode(raw) as List)
+            .map((e) => IncomeSource.fromJson(e as Map<String, dynamic>))
+            .toList();
       }
-      setState(() {
-        _monthlyExpenses += dailyTotal;
-      });
+      _loaded = true;
+    });
+  }
+
+  List<IncomeSource> get _thisMonthSources {
+    final now = DateTime.now();
+    return _allSources
+        .where((s) =>
+            s.date != null &&
+            s.date!.year == now.year &&
+            s.date!.month == now.month)
+        .toList()
+      ..sort((a, b) => b.date!.compareTo(a.date!));
+  }
+
+  Future<void> _persistList(List<IncomeSource> list) async {
+    final ok = await _persistence.write(
+      _prefKey,
+      json.encode(list.map((e) => e.toJson()).toList()),
+    );
+    if (!mounted) return;
+    if (ok) {
+      setState(() => _allSources = list);
+    } else {
+      _showSaveFailedSnackBar(list);
     }
   }
 
-  Future<void> _saveIncome() async {
-    final prefs = await SharedPreferences.getInstance();
-    final String encoded = json.encode(_incomeSources.map((e) => e.toJson()).toList());
-    await prefs.setString('income_sources', encoded);
+  void _showSaveFailedSnackBar(List<IncomeSource> pendingList) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(t('income', 'save_failed', widget.language)),
+      action: SnackBarAction(
+        label: t('shared', 'retry', widget.language),
+        onPressed: () => _persistList(pendingList),
+      ),
+    ));
   }
 
-  double get _totalIncome => _incomeSources.fold(0, (sum, e) => sum + e.amount);
-  double get _balance => _totalIncome - _monthlyExpenses;
-
-  void _showAddIncomeDialog(String type) {
-    final controller = TextEditingController();
-    final existingIncome = _incomeSources.where((e) => e.type == type).toList();
-    if (existingIncome.isNotEmpty) {
-      controller.text = existingIncome.first.amount.toStringAsFixed(0);
-    }
-
+  void _showAddDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(getIncomeText(type, widget.language)),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          autofocus: true,
-          decoration: InputDecoration(
-            hintText: getIncomeText('enter_amount', widget.language),
-            prefixText: '${getIncomeText('rupees', widget.language)} ',
-            border: const OutlineInputBorder(),
-          ),
-          style: const TextStyle(fontSize: 24),
-        ),
+      builder: (ctx) => IncomeAddDialog(
+        language: widget.language,
+        onSave: (source) {
+          Navigator.pop(ctx);
+          _persistList([..._allSources, source]);
+        },
+      ),
+    );
+  }
+
+  void _showDeleteDialog(IncomeSource source) {
+    final lang = widget.language;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        content: Text(t('income', 'delete_confirm', lang)),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(getIncomeText('cancel', widget.language)),
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(t('shared', 'cancel', lang)),
           ),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red, foregroundColor: Colors.white),
             onPressed: () {
-              final amount = double.tryParse(controller.text) ?? 0;
-              setState(() {
-                _incomeSources.removeWhere((e) => e.type == type);
-                if (amount > 0) {
-                  _incomeSources.add(IncomeSource(
-                    id: DateTime.now().millisecondsSinceEpoch.toString(),
-                    type: type,
-                    amount: amount,
-                  ));
-                }
-              });
-              _saveIncome();
-              Navigator.pop(context);
+              Navigator.pop(ctx);
+              _persistList(
+                  _allSources.where((s) => s.id != source.id).toList());
             },
-            child: Text(getIncomeText('save', widget.language)),
+            child: Text(t('shared', 'delete', lang)),
           ),
         ],
       ),
@@ -219,197 +119,128 @@ class _IncomeScreenState extends State<IncomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isPositive = _balance >= 0;
+    final lang = widget.language;
+    final monthSources = _thisMonthSources;
+    final monthTotal = sumIncomeForMonth(_allSources, DateTime.now());
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(getIncomeText('title', widget.language)),
+        title: Text(t('income', 'title', lang)),
         centerTitle: true,
         backgroundColor: Theme.of(context).colorScheme.primaryContainer,
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              // Balance Card
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: isPositive
-                        ? [Colors.green.shade400, Colors.green.shade600]
-                        : [Colors.red.shade400, Colors.red.shade600],
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Column(
-                  children: [
-                    Text(
-                      getIncomeText('balance', widget.language),
-                      style: const TextStyle(
-                        fontSize: 18,
-                        color: Colors.white70,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '${getIncomeText('rupees', widget.language)} ${_balance.toStringAsFixed(0)}',
-                      style: const TextStyle(
-                        fontSize: 36,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          isPositive ? Icons.trending_up : Icons.trending_down,
-                          color: Colors.white,
+      body: !_loaded
+          ? const Center(child: CircularProgressIndicator())
+          : SafeArea(
+              child: Column(
+                children: [
+                  _buildSummaryCard(lang, monthTotal, monthSources.length),
+                  Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _showAddDialog,
+                        icon: const Icon(Icons.add),
+                        label: Text(t('income', 'add_income', lang)),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
-                        const SizedBox(width: 8),
-                        Text(
-                          isPositive
-                              ? getIncomeText('saving', widget.language)
-                              : getIncomeText('overspending', widget.language),
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: monthSources.isEmpty
+                        ? _buildEmptyState(lang)
+                        : ListView.builder(
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 16),
+                            itemCount: monthSources.length,
+                            itemBuilder: (_, i) =>
+                                _buildTile(monthSources[i], lang),
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              // Income vs Expenses
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildStatCard(
-                      getIncomeText('monthly_income', widget.language),
-                      _totalIncome,
-                      Colors.green,
-                      Icons.arrow_downward,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildStatCard(
-                      getIncomeText('total_expenses', widget.language),
-                      _monthlyExpenses,
-                      Colors.red,
-                      Icons.arrow_upward,
-                    ),
                   ),
                 ],
               ),
+            ),
+    );
+  }
 
-              const SizedBox(height: 24),
-
-              // Income Sources Section
-              Row(
-                children: [
-                  Text(
-                    getIncomeText('income_sources', widget.language),
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 16),
-
-              // Income Type Cards
-              ...incomeTypes.map((type) {
-                final existing = _incomeSources.where((e) => e.type == type['key']).toList();
-                final amount = existing.isNotEmpty ? existing.first.amount : 0.0;
-
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.all(16),
-                    leading: CircleAvatar(
-                      backgroundColor: (type['color'] as Color).withAlpha(50),
-                      radius: 28,
-                      child: Icon(
-                        type['icon'] as IconData,
-                        color: type['color'] as Color,
-                        size: 28,
-                      ),
-                    ),
-                    title: Text(
-                      getIncomeText(type['key'] as String, widget.language),
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    subtitle: Text(
-                      '${getIncomeText('rupees', widget.language)} ${amount.toStringAsFixed(0)}',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: type['color'] as Color,
-                      ),
-                    ),
-                    trailing: ElevatedButton(
-                      onPressed: () => _showAddIncomeDialog(type['key'] as String),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: type['color'] as Color,
-                        foregroundColor: Colors.white,
-                      ),
-                      child: Text(amount > 0 ? getIncomeText('save', widget.language) : getIncomeText('add_income', widget.language)),
-                    ),
-                  ),
-                );
-              }),
-            ],
+  Widget _buildSummaryCard(String lang, int totalPaisa, int count) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.green.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.green.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(t('income', 'this_month', lang),
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 6),
+          Text(
+            '${t('shared', 'rupees', lang)} ${paisaToDisplay(totalPaisa)}',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: Colors.green.shade700,
+            ),
           ),
-        ),
+          const SizedBox(height: 4),
+          // 'entries' reused from reports scope — same concept, same translations.
+          Text('$count ${t('reports', 'entries', lang)}',
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+        ],
       ),
     );
   }
 
-  Widget _buildStatCard(String label, double amount, Color color, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withAlpha(30),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withAlpha(100)),
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: color, size: 20),
-              const SizedBox(width: 4),
-              Text(
-                label,
-                style: TextStyle(fontSize: 12, color: color),
+  Widget _buildEmptyState(String lang) {
+    return Center(
+      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Icon(Icons.account_balance_wallet_outlined,
+            size: 64, color: Colors.grey.shade400),
+        const SizedBox(height: 12),
+        Text(
+          t('income', 'no_income', lang),
+          style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+          textAlign: TextAlign.center,
+        ),
+      ]),
+    );
+  }
+
+  Widget _buildTile(IncomeSource source, String lang) {
+    final date = source.date!;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        title: Text(source.type,
+            style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text('${date.day}/${date.month}/${date.year}'),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '${t('shared', 'rupees', lang)} ${paisaToDisplay(source.amount)}',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: Colors.green.shade700,
               ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '${getIncomeText('rupees', widget.language)} ${amount.toStringAsFixed(0)}',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: color,
             ),
-          ),
-        ],
+            const SizedBox(width: 4),
+            IconButton(
+              icon: const Icon(Icons.delete, color: Colors.red),
+              onPressed: () => _showDeleteDialog(source),
+            ),
+          ],
+        ),
       ),
     );
   }
