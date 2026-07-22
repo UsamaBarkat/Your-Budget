@@ -32,6 +32,7 @@ const Map<String, Map<String, String>> stringsUr = {
     'no_expenses': 'آج کوئی خرچہ نہیں',
     'this_week': 'اس ہفتے',
     'this_month': 'اس مہینے',
+    'delete_confirm': 'کیا یہ خرچہ حذف کریں؟',
   },
   'expenses': {
     'title': 'ماہانہ اخراجات',
@@ -107,6 +108,8 @@ const Map<String, Map<String, String>> stringsUr = {
     'saved': 'بچایا',
     'of': 'میں سے',
     'save_failed': 'محفوظ نہیں ہوا',
+    'remaining': 'باقی',
+    'over_budget': 'بجٹ سے زیادہ',
   },
   'income': {
     'title': 'آمدنی',

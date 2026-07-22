@@ -32,6 +32,7 @@ const Map<String, Map<String, String>> stringsSd = {
     'no_expenses': 'اڄ ڪو خرچو ناهي',
     'this_week': 'هن هفتي',
     'this_month': 'هن مهيني',
+    'delete_confirm': 'ڇا هي خرچو ختم ڪجي؟',
   },
   'expenses': {
     'title': 'مهيني جا خرچا',
@@ -107,6 +108,8 @@ const Map<String, Map<String, String>> stringsSd = {
     'saved': 'بچايو',
     'of': 'مان',
     'save_failed': 'محفوظ نه ٿيو',
+    'remaining': 'باقي',
+    'over_budget': 'بجيٽ کان وڌيڪ',
   },
   'income': {
     'title': 'آمدني',

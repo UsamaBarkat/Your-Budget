@@ -3,6 +3,7 @@ import 'package:home_budget_app/core/report_utils.dart';
 import 'package:home_budget_app/models/daily_expense.dart';
 import 'package:home_budget_app/models/income_source.dart';
 
+
 void main() {
   final now = DateTime(2025, 7, 15);
 
@@ -85,6 +86,20 @@ void main() {
         makeIncome(20000),
       ];
       expect(sumIncomeForMonth(sources, now), 200000);
+    });
+  });
+
+  group('sumBudgetPaisa', () {
+    test('TS-R9: empty map returns zero', () {
+      expect(sumBudgetPaisa({}), 0);
+    });
+
+    test('TS-R10: multiple categories are summed', () {
+      expect(sumBudgetPaisa({'grocery': 500000, 'school': 300000}), 800000);
+    });
+
+    test('TS-R11: all-zero categories return zero', () {
+      expect(sumBudgetPaisa({'grocery': 0, 'bills': 0}), 0);
     });
   });
 }

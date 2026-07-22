@@ -1,6 +1,11 @@
 import '../models/daily_expense.dart';
 import '../models/income_source.dart';
 
+// Returns total paisa from a monthly budget map (category → paisa).
+// Returns 0 for an empty map.
+int sumBudgetPaisa(Map<String, dynamic> budgetMap) =>
+    budgetMap.values.fold(0, (sum, v) => sum + (v as num).toInt());
+
 // Returns a map of day-of-month → total paisa for the same year+month as [now].
 // Days with no expenses are absent from the map (not present as zero).
 Map<int, int> bucketExpensesByDay(List<DailyExpense> expenses, DateTime now) {

@@ -32,6 +32,7 @@ const Map<String, Map<String, String>> stringsEn = {
     'no_expenses': 'No expenses today',
     'this_week': 'This Week',
     'this_month': 'This Month',
+    'delete_confirm': 'Delete this expense?',
   },
   'expenses': {
     'title': 'Monthly Expenses',
@@ -106,6 +107,8 @@ const Map<String, Map<String, String>> stringsEn = {
     'saved': 'Saved',
     'of': 'of',
     'save_failed': 'Save failed',
+    'remaining': 'Remaining',
+    'over_budget': 'Over Budget',
   },
   'income': {
     'title': 'Income',
