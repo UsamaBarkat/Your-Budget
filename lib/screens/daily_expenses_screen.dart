@@ -110,6 +110,28 @@ class _DailyExpensesScreenState extends State<DailyExpensesScreen> {
     if (!ok && mounted) _showSaveFailedSnackbar();
   }
 
+  void _showDeleteDialog(DailyExpense expense) {
+    final lang = widget.language;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        content: Text(t('daily', 'delete_confirm', lang)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(t('shared', 'cancel', lang))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red, foregroundColor: Colors.white),
+            onPressed: () {
+              Navigator.pop(ctx);
+              _deleteExpense(expense.id);
+            },
+            child: Text(t('shared', 'delete', lang)),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showAddDialog(String category) {
     final controller = TextEditingController();
     String? errorText;
@@ -132,10 +154,7 @@ class _DailyExpensesScreenState extends State<DailyExpensesScreen> {
             onChanged: (_) => setDialogState(() => errorText = null),
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(t('daily', 'cancel', widget.language)),
-            ),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(t('daily', 'cancel', widget.language))),
             ElevatedButton(
               onPressed: () {
                 final err = validateRupeeInput(controller.text);
@@ -218,10 +237,8 @@ class _DailyExpensesScreenState extends State<DailyExpensesScreen> {
     final color = cat['color'] as Color;
     return Card(
       child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: color.withAlpha(50),
-          child: Icon(cat['icon'] as IconData, color: color),
-        ),
+        leading: CircleAvatar(backgroundColor: color.withAlpha(50),
+            child: Icon(cat['icon'] as IconData, color: color)),
         title: Text(t('daily', expense.category, widget.language)),
         subtitle: Text(DateFormat('dd/MM · hh:mm a').format(expense.date)),
         trailing: Row(
@@ -233,7 +250,7 @@ class _DailyExpensesScreenState extends State<DailyExpensesScreen> {
             const SizedBox(width: 4),
             IconButton(
               icon: const Icon(Icons.delete, color: Colors.red, size: 20),
-              onPressed: () => _deleteExpense(expense.id),
+              onPressed: () => _showDeleteDialog(expense),
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
             ),
