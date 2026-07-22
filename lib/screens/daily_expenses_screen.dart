@@ -77,6 +77,14 @@ class _DailyExpensesScreenState extends State<DailyExpensesScreen> {
     return _expenses.where((e) => e.date.year == now.year && e.date.month == now.month && e.date.day == now.day).toList();
   }
 
+  List<DailyExpense> get _monthExpenses {
+    final now = DateTime.now();
+    return _expenses
+        .where((e) => e.date.year == now.year && e.date.month == now.month)
+        .toList()
+      ..sort((a, b) => b.date.compareTo(a.date));
+  }
+
   int get _todayTotal => _todayExpenses.fold(0, (s, e) => s + e.amount);
   int get _weekTotal => _expenses.where((e) => isSameWeek(e.date, DateTime.now())).fold(0, (s, e) => s + e.amount);
   int get _monthTotal {
@@ -186,16 +194,6 @@ class _DailyExpensesScreenState extends State<DailyExpensesScreen> {
             ),
             const SizedBox(height: 16),
             const Divider(),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                children: [
-                  Text(t('daily', 'today', widget.language), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  const Spacer(),
-                  Text('${t('daily', 'rupees', widget.language)} ${paisaToDisplay(_todayTotal)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue)),
-                ],
-              ),
-            ),
             Expanded(child: _buildExpenseList()),
           ],
         ),
@@ -204,7 +202,7 @@ class _DailyExpensesScreenState extends State<DailyExpensesScreen> {
   }
 
   Widget _buildExpenseList() {
-    final items = _todayExpenses;
+    final items = _monthExpenses;
     if (items.isEmpty) {
       return Center(child: Text(t('daily', 'no_expenses', widget.language), style: TextStyle(fontSize: 16, color: Colors.grey.shade600)));
     }
@@ -225,7 +223,7 @@ class _DailyExpensesScreenState extends State<DailyExpensesScreen> {
           child: Icon(cat['icon'] as IconData, color: color),
         ),
         title: Text(t('daily', expense.category, widget.language)),
-        subtitle: Text(DateFormat('hh:mm a').format(expense.date)),
+        subtitle: Text(DateFormat('dd/MM · hh:mm a').format(expense.date)),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
