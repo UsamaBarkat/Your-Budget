@@ -21,13 +21,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
   Map<int, int> _bucket = {};
   int _entryCount = 0;
   int _totalPaisa = 0;
-  // savings_goal / savings_saved are stored as String(int paisa) by Spec 1
-  // PersistenceService (_goal.toString()). Confirmed in SavingsScreen: _goal is
-  // int paisa set via rupeesToPaisa(). Loaded with int.tryParse — safe to display
-  // via paisaToDisplay().
   int _goalPaisa = 0;
   int _savedPaisa = 0;
   int _monthlyIncomePaisa = 0;
+  int _budgetPaisa = 0;
   bool _loaded = false;
 
   @override
@@ -76,6 +73,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
       monthlyIncome = sumIncomeForMonth(sources, now);
     }
 
+    int budgetPaisa = 0;
+    final budgetRaw = prefs.getString('expenses');
+    if (budgetRaw != null) {
+      final budgetMap = json.decode(budgetRaw) as Map<String, dynamic>;
+      budgetPaisa = sumBudgetPaisa(budgetMap);
+    }
+
     if (!mounted) return;
     setState(() {
       _bucket = bucket;
@@ -84,6 +88,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       _goalPaisa = goalPaisa;
       _savedPaisa = savedPaisa;
       _monthlyIncomePaisa = monthlyIncome;
+      _budgetPaisa = budgetPaisa;
       _loaded = true;
     });
   }
@@ -214,22 +219,38 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   Widget _buildSummary(String lang) {
     final rupees = t('reports', 'rupees', lang);
+    final remainingPaisa = _budgetPaisa - _totalPaisa;
+    final remainingColor = remainingPaisa < 0 ? Colors.red : Colors.green.shade700;
+    final remainingLabel = remainingPaisa < 0
+        ? t('reports', 'over_budget', lang)
+        : t('reports', 'remaining', lang);
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.blue.shade50,
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(t('reports', 'total_spent', lang),
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-          Text('$rupees ${paisaToDisplay(_totalPaisa)}',
-              style: const TextStyle(
-                  fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blue)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(t('reports', 'total_spent', lang),
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+            Text('$rupees ${paisaToDisplay(_totalPaisa)}',
+                style: const TextStyle(
+                    fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blue)),
+          ]),
+          Text('$_entryCount ${t('reports', 'entries', lang)}',
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
         ]),
-        Text('$_entryCount ${t('reports', 'entries', lang)}',
-            style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
+        if (_budgetPaisa > 0) ...[
+          const Divider(height: 20),
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            Text(remainingLabel,
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: remainingColor)),
+            Text('$rupees ${paisaToDisplay(remainingPaisa.abs())}',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: remainingColor)),
+          ]),
+        ],
       ]),
     );
   }
@@ -246,14 +267,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
           '${t('income', 'this_month', lang)} ${t('income', 'title', lang)}',
           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
         ),
-        Text(
-          '${t('shared', 'rupees', lang)} ${paisaToDisplay(_monthlyIncomePaisa)}',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Colors.green.shade700,
-          ),
-        ),
+        Text('${t('shared', 'rupees', lang)} ${paisaToDisplay(_monthlyIncomePaisa)}',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green.shade700)),
       ]),
     );
   }
